@@ -31,7 +31,7 @@ public class User {
     private String email;
 
     private String password;
-    private LocalDate createDate;
+    private LocalDate registeredDate;
 
     @OneToMany(mappedBy = "user")
     private List<Income> incomes = new ArrayList<>();
