@@ -30,6 +30,8 @@ public class SavingsGoal {
 
     private BigDecimal currentAmount;
 
+    private BigDecimal monthlyAllocation;
+
     private LocalDate targetDate;
 
     @ManyToOne
