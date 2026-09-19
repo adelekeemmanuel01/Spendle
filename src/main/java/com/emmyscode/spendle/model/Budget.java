@@ -29,8 +29,6 @@ public class Budget {
     private Categories category;
 
     private BigDecimal amount;
-    private LocalDate startDate;
-    private LocalDate endDate;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)

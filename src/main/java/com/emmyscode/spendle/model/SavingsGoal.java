@@ -24,13 +24,14 @@ public class SavingsGoal {
     @UuidGenerator
     private UUID id;
 
-    private String name;
-
+//  The total they're aiming to reach
     private BigDecimal targetAmount;
 
-    private BigDecimal currentAmount;
-
+//  How much they want to save per month
     private BigDecimal monthlyAllocation;
+
+//  How much they've saved so far toward it
+    private BigDecimal currentAmount;
 
     private LocalDate targetDate;
 

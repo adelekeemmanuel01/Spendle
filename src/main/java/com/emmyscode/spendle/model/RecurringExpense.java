@@ -1,38 +1,38 @@
 package com.emmyscode.spendle.model;
 
+import com.emmyscode.spendle.dto.RecurringExpenseRequestDTO;
 import com.emmyscode.spendle.enums.Categories;
+import com.emmyscode.spendle.enums.RecurringFrequency;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "expense")
+@Table(name = "recurring_expense")
 @Getter
 @Setter
-@NoArgsConstructor
 @AllArgsConstructor
-public class Expense {
+@NoArgsConstructor
+public class RecurringExpense {
     @Id
     @GeneratedValue
-    @UuidGenerator
     private UUID id;
 
+    private String name;
+
     private BigDecimal amount;
-    private String description;
 
-    @Enumerated(EnumType.STRING)
-    private Categories category;
-
-    private LocalDateTime date;
+    private LocalDateTime nextPaymentDate;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+
 }

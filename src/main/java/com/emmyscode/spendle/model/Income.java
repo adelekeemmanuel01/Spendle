@@ -25,8 +25,6 @@ public class Income {
     private UUID id;
 
     private BigDecimal amount;
-    private String Source;
-    private LocalDate date;
 
     @Enumerated(EnumType.STRING)
     private IncomeType type;

@@ -1,4 +1,4 @@
-package com.emmyscode.spendle.dto;
+package com.emmyscode.spendle.dtos;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -6,10 +6,9 @@ import java.util.UUID;
 
 public record SavingsGoalResponseDTO(
         UUID id,
-        String name,
         BigDecimal targetAmount,
+        BigDecimal monthlyAllocation,
         BigDecimal currentAmount,
-        LocalDate targetDate,
-        UUID userId
+        LocalDate targetDate
 ) {
 }

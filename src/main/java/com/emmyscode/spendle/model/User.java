@@ -1,6 +1,7 @@
 package com.emmyscode.spendle.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,7 +15,7 @@ import java.util.UUID;
 
 
 @Entity
-@Table(name = "users")
+@Table(name = "user")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -25,19 +26,25 @@ public class User {
     @UuidGenerator
     private UUID id;
 
-    private String name;
+    @Column(name = "full_name", length = 150, nullable = false)
+    private String fullName;
 
     @Column(unique = true, nullable = false)
     private String email;
 
+    @Column(name = "phone_number", length = 15, nullable = false)
+    private String phoneNumber;
+
+    @Column(nullable = false)
     private String password;
+
     private LocalDate registeredDate;
 
     @OneToMany(mappedBy = "user")
-    private List<Income> incomes = new ArrayList<>();
+    private List<RecurringExpense> recurringExpenses = new ArrayList<>();
 
     @OneToMany(mappedBy = "user")
-    private List<Expense> expenses = new ArrayList<>();
+    private List<Income> incomes = new ArrayList<>();
 
     @OneToMany(mappedBy = "user")
     private List<Budget> budgets = new ArrayList<>();
