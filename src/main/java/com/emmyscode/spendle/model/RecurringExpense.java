@@ -1,13 +1,12 @@
 package com.emmyscode.spendle.model;
 
-import com.emmyscode.spendle.dto.RecurringExpenseRequestDTO;
-import com.emmyscode.spendle.enums.Categories;
-import com.emmyscode.spendle.enums.RecurringFrequency;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import org.hibernate.annotations.UuidGenerator;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -22,6 +21,7 @@ import java.util.UUID;
 public class RecurringExpense {
     @Id
     @GeneratedValue
+    @UuidGenerator
     private UUID id;
 
     private String name;
