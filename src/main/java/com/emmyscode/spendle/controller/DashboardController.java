@@ -4,6 +4,7 @@ import com.emmyscode.spendle.dtos.DashboardResponseDTO;
 import com.emmyscode.spendle.model.User;
 import com.emmyscode.spendle.service.DashboardService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +27,9 @@ public class DashboardController {
     @GetMapping
     public ResponseEntity<DashboardResponseDTO> getDashboard(
             @AuthenticationPrincipal User currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         return ResponseEntity.ok(dashboardService.getDashboard(currentUser));
     }
 }

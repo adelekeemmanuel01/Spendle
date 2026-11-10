@@ -2,6 +2,7 @@ package com.emmyscode.spendle.service;
 
 import com.emmyscode.spendle.dtos.SavingsGoalRequestDTO;
 import com.emmyscode.spendle.dtos.SavingsGoalResponseDTO;
+import com.emmyscode.spendle.exception.DuplicateResourceException;
 import com.emmyscode.spendle.exception.ResourceNotFoundException;
 import com.emmyscode.spendle.model.SavingsGoal;
 import com.emmyscode.spendle.model.User;
@@ -36,6 +37,10 @@ public class SavingsGoalService {
 
     @Transactional
     public SavingsGoalResponseDTO createSavingsGoal(SavingsGoalRequestDTO dto, User currentUser) {
+        List<SavingsGoal> existing = savingsGoalRepository.findByUserId(currentUser.getId());
+        if (!existing.isEmpty()) {
+            throw new DuplicateResourceException("Each user is restricted to a maximum of 1 active savings goal.");
+        }
         SavingsGoal goal = new SavingsGoal();
         goal.setTargetAmount(dto.targetAmount());
         goal.setMonthlyAllocation(dto.monthlyAllocation());

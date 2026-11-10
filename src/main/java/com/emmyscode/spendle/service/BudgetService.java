@@ -63,4 +63,5 @@ public class BudgetService {
     private BudgetResponseDTO toDto(Budget b) {
         return new BudgetResponseDTO(b.getId(), b.getCategory(), b.getAmount());
     }
+
 }

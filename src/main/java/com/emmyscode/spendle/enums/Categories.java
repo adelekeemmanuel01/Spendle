@@ -6,5 +6,6 @@ public enum Categories {
     RENT,
     FAMILY,
     BUSINESS,
+    PERSONAL,
     OTHER
 }

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -20,17 +21,18 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Spring Security 6 configuration (no WebSecurityConfigurerAdapter).
+ * Spring Security 6 configuration.
  *
  * Key decisions:
  *  - CSRF disabled: stateless JWT API, no session cookies.
  *  - Sessions: STATELESS — every request must carry a token.
  *  - Auth endpoints are public; everything else under /api/** requires auth.
- *  - @EnableMethodSecurity enables @PreAuthorize for future ADMIN guards.
- *  - CORS allows the React dev origin and a configurable prod origin.
+ *  - CORS allows localhost, 127.0.0.1 on all dev ports, and configured origins.
+ *  - Preflight OPTIONS requests are explicitly permitted.
  *  - Custom JSON 401/403 handlers replace Spring's HTML error pages.
  */
 @Configuration
@@ -80,12 +82,14 @@ public class SecurityConfig {
             .sessionManagement(session ->
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                    // Preflight CORS requests must always be allowed
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     // Public auth endpoints
                     .requestMatchers(
                             "/api/auth/signup",
                             "/api/auth/login"
                     ).permitAll()
-                    // H2 console (dev only — guarded by profile in production)
+                    // H2 console (dev only)
                     .requestMatchers("/h2-console/**").permitAll()
                     // Everything else requires a valid JWT
                     .anyRequest().authenticated()
@@ -110,12 +114,24 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Comma-separated list from properties; default = React dev origin
-        List<String> origins = List.of(allowedOrigins.split(","));
-        config.setAllowedOrigins(origins);
+        List<String> patterns = new ArrayList<>();
+        patterns.add("http://localhost:*");
+        patterns.add("http://127.0.0.1:*");
+        patterns.add("http://[::1]:*");
 
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        if (allowedOrigins != null && !allowedOrigins.isBlank()) {
+            for (String origin : allowedOrigins.split(",")) {
+                String trimmed = origin.trim();
+                if (!trimmed.isEmpty()) {
+                    patterns.add(trimmed);
+                }
+            }
+        }
+
+        config.setAllowedOriginPatterns(patterns);
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization", "Link", "X-Total-Count"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
