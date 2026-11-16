@@ -44,18 +44,30 @@ public class User implements UserDetails {
 
     private LocalDate registeredDate;
 
+
+    @Column(nullable = false)
+    private boolean emailVerified = false;
+
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
+    }
+
+
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role = Role.USER;
 
-    // ── UserDetails interface ─────────────────────────────────────────────────
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
-    /** Spring Security uses this for authentication; we authenticate by email. */
     @Override
     public String getUsername() {
         return email;
@@ -78,7 +90,9 @@ public class User implements UserDetails {
         return true;
     }
 
-    // ── Associations ──────────────────────────────────────────────────────────
+
+
+
 
     @OneToMany(mappedBy = "user")
     private List<RecurringExpense> recurringExpenses = new ArrayList<>();

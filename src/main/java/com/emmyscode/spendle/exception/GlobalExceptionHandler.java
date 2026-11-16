@@ -106,6 +106,23 @@ public class GlobalExceptionHandler {
                 .body(errorBody(500, "An unexpected error occurred. Please try again later."));
     }
 
+
+    @ExceptionHandler(InvalidCodeException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidCode(InvalidCodeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<Map<String, String>> handleTooMany(TooManyRequestsException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<Map<String, String>> handleNotVerified(EmailNotVerifiedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("code", "EMAIL_NOT_VERIFIED", "message", ex.getMessage()));
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private Map<String, Object> errorBody(int status, String message) {

@@ -38,6 +38,57 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
 
+//    @Override
+//    protected void doFilterInternal(
+//            @NonNull HttpServletRequest request,
+//            @NonNull HttpServletResponse response,
+//            @NonNull FilterChain filterChain) throws ServletException, IOException {
+//
+//        try {
+//            String authHeader = request.getHeader("Authorization");
+//
+//            // No token → continue unauthenticated
+//            if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+//                filterChain.doFilter(request, response);
+//                return;
+//            }
+//
+//            String token = authHeader.substring(BEARER_PREFIX.length());
+//
+//            // If context already populated (e.g. by an earlier filter) skip validation
+//            if (SecurityContextHolder.getContext().getAuthentication() != null) {
+//                filterChain.doFilter(request, response);
+//                return;
+//            }
+//
+//            String email = jwtService.extractEmail(token);
+//            if (email == null) {
+//                filterChain.doFilter(request, response);
+//                return;
+//            }
+//
+//            User user = userDetailsService.loadUserEntityByEmail(email);
+//
+//            if (jwtService.isTokenValid(token, user)) {
+//                UsernamePasswordAuthenticationToken authToken =
+//                        new UsernamePasswordAuthenticationToken(
+//                                user,
+//                                null,
+//                                user.getAuthorities());
+//                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+//                SecurityContextHolder.getContext().setAuthentication(authToken);
+//            }
+//        } catch (Exception ex) {
+//            // Any unexpected error (expired token, tampered signature, user not found) →
+//            // leave SecurityContext empty. AuthenticationEntryPoint issues the 401.
+//            log.debug("JWT authentication failed for request [{}]: {}",
+//                    request.getRequestURI(), ex.getMessage());
+//        }
+//
+//        filterChain.doFilter(request, response);
+//    }
+
+
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
@@ -45,46 +96,43 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         try {
-            String authHeader = request.getHeader("Authorization");
-
-            // No token → continue unauthenticated
-            if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            String token = authHeader.substring(BEARER_PREFIX.length());
-
-            // If context already populated (e.g. by an earlier filter) skip validation
-            if (SecurityContextHolder.getContext().getAuthentication() != null) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            String email = jwtService.extractEmail(token);
-            if (email == null) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            User user = userDetailsService.loadUserEntityByEmail(email);
-
-            if (jwtService.isTokenValid(token, user)) {
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                user,
-                                null,
-                                user.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
+            authenticate(request);
         } catch (Exception ex) {
-            // Any unexpected error (expired token, tampered signature, user not found) →
-            // leave SecurityContext empty. AuthenticationEntryPoint issues the 401.
+            // Expired token, bad signature, unknown user: leave the SecurityContext empty.
+            // The AuthenticationEntryPoint issues the 401 on protected routes.
             log.debug("JWT authentication failed for request [{}]: {}",
                     request.getRequestURI(), ex.getMessage());
         }
 
         filterChain.doFilter(request, response);
     }
+
+    private void authenticate(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+
+        if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+            return;
+        }
+
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            return;
+        }
+
+        String token = authHeader.substring(BEARER_PREFIX.length());
+
+        String email = jwtService.extractEmail(token);
+        if (email == null) {
+            return;
+        }
+
+        User user = userDetailsService.loadUserEntityByEmail(email);
+
+        if (jwtService.isTokenValid(token, user)) {
+            UsernamePasswordAuthenticationToken authToken =
+                    new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+        }
+    }
 }
+

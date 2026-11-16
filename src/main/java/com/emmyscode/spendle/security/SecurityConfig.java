@@ -87,7 +87,9 @@ public class SecurityConfig {
                     // Public auth endpoints
                     .requestMatchers(
                             "/api/auth/signup",
-                            "/api/auth/login"
+                            "/api/auth/login",
+                            "/api/auth/verify-email",
+                            "/api/auth/resend-code"
                     ).permitAll()
                     // H2 console (dev only)
                     .requestMatchers("/h2-console/**").permitAll()

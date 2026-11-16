@@ -1,9 +1,101 @@
+//package com.emmyscode.spendle.service;
+//
+//import com.emmyscode.spendle.dtos.AuthResponseDTO;
+//import com.emmyscode.spendle.dtos.LoginRequestDTO;
+//import com.emmyscode.spendle.dtos.SignupRequest;
+//import com.emmyscode.spendle.exception.EmailAlreadyExistsException;
+//import com.emmyscode.spendle.exception.InvalidCredentialsException;
+//import com.emmyscode.spendle.model.User;
+//import com.emmyscode.spendle.repositories.UserRepository;
+//import com.emmyscode.spendle.security.JwtService;
+//import lombok.RequiredArgsConstructor;
+//import lombok.extern.slf4j.Slf4j;
+//import org.springframework.security.authentication.AuthenticationManager;
+//import org.springframework.security.authentication.BadCredentialsException;
+//import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+//import org.springframework.security.crypto.password.PasswordEncoder;
+//import org.springframework.stereotype.Service;
+//import org.springframework.transaction.annotation.Transactional;
+//
+//import java.time.LocalDate;
+//
+///**
+// * Handles user registration and login.
+// *
+// * Security rules enforced here:
+// *  - Duplicate emails are rejected before any DB write.
+// *  - Passwords are stored as BCrypt hashes; plaintext is never persisted or logged.
+// *  - Login failures always produce the same generic message to prevent user enumeration.
+// *  - A JWT is returned on both signup and login so the React client can proceed
+// *    directly to the dashboard without a second round-trip.
+// */
+//@Slf4j
+//@Service
+//@RequiredArgsConstructor
+//public class AuthService {
+//
+//    private final UserRepository userRepository;
+//    private final PasswordEncoder passwordEncoder;
+//    private final JwtService jwtService;
+//    private final AuthenticationManager authenticationManager;
+//
+//    // ── Signup ────────────────────────────────────────────────────────────────
+//
+//    @Transactional
+//    public AuthResponseDTO signup(SignupRequest dto) {
+//        if (userRepository.existsByEmail(dto.email())) {
+//            throw new EmailAlreadyExistsException(dto.email());
+//        }
+//
+//        User user = new User();
+//        user.setFullName(dto.fullName());
+//        user.setEmail(dto.email());
+//        user.setPhoneNumber(dto.phoneNumber());
+//        user.setPassword(passwordEncoder.encode(dto.password())); // hash, never plaintext
+//        user.setRegisteredDate(LocalDate.now());
+//        // role defaults to USER via the field initializer on User entity
+//
+//        User saved = userRepository.save(user);
+//        String token = jwtService.generateToken(saved);
+//
+//        log.info("New user registered: id={}", saved.getId());
+//        return toAuthResponse(saved, token);
+//    }
+//
+//    // ── Login ─────────────────────────────────────────────────────────────────
+//
+//    public AuthResponseDTO login(LoginRequestDTO dto) {
+//        try {
+//            authenticationManager.authenticate(
+//                    new UsernamePasswordAuthenticationToken(dto.email(), dto.password()));
+//        } catch (BadCredentialsException ex) {
+//            // Deliberate: same message whether email is unknown or password is wrong.
+//            throw new InvalidCredentialsException();
+//        }
+//
+//        User user = userRepository.findByEmail(dto.email())
+//                .orElseThrow(InvalidCredentialsException::new);
+//
+//        String token = jwtService.generateToken(user);
+//        log.info("User logged in: id={}", user.getId());
+//        return toAuthResponse(user, token);
+//    }
+//
+//    // ── Helpers ───────────────────────────────────────────────────────────────
+//
+//    private AuthResponseDTO toAuthResponse(User user, String token) {
+//        return new AuthResponseDTO(user.getId(), user.getFullName(), user.getEmail(), token);
+//    }
+//}
+
+
 package com.emmyscode.spendle.service;
 
 import com.emmyscode.spendle.dtos.AuthResponseDTO;
 import com.emmyscode.spendle.dtos.LoginRequestDTO;
 import com.emmyscode.spendle.dtos.SignupRequest;
 import com.emmyscode.spendle.exception.EmailAlreadyExistsException;
+import com.emmyscode.spendle.exception.EmailNotVerifiedException;
 import com.emmyscode.spendle.exception.InvalidCredentialsException;
 import com.emmyscode.spendle.model.User;
 import com.emmyscode.spendle.repositories.UserRepository;
@@ -18,16 +110,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Optional;
 
 /**
  * Handles user registration and login.
  *
  * Security rules enforced here:
- *  - Duplicate emails are rejected before any DB write.
+ *  - Verified duplicate emails are rejected before any DB write.
  *  - Passwords are stored as BCrypt hashes; plaintext is never persisted or logged.
  *  - Login failures always produce the same generic message to prevent user enumeration.
- *  - A JWT is returned on both signup and login so the React client can proceed
- *    directly to the dashboard without a second round-trip.
+ *  - Signup does not return a JWT. A 6-digit code is emailed instead, and the JWT is
+ *    issued only after the code is confirmed (see EmailVerificationService.verify).
+ *  - Login is refused until the email is verified.
  */
 @Slf4j
 @Service
@@ -38,13 +132,30 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final EmailVerificationService verificationService;
 
     // ── Signup ────────────────────────────────────────────────────────────────
 
     @Transactional
-    public AuthResponseDTO signup(SignupRequest dto) {
-        if (userRepository.existsByEmail(dto.email())) {
-            throw new EmailAlreadyExistsException(dto.email());
+    public void signup(SignupRequest dto) {
+        Optional<User> existing = userRepository.findByEmail(dto.email());
+
+        if (existing.isPresent()) {
+            User user = existing.get();
+
+            if (user.isEmailVerified()) {
+                throw new EmailAlreadyExistsException(dto.email());
+            }
+
+            // Never confirmed: the latest signup wins. Overwrite the details so that
+            // whoever controls the inbox is the one who ends up owning the account.
+            user.setFullName(dto.fullName());
+            user.setPhoneNumber(dto.phoneNumber());
+            user.setPassword(passwordEncoder.encode(dto.password()));
+            userRepository.save(user);
+
+            verificationService.issueCode(user);
+            return;
         }
 
         User user = new User();
@@ -53,13 +164,12 @@ public class AuthService {
         user.setPhoneNumber(dto.phoneNumber());
         user.setPassword(passwordEncoder.encode(dto.password())); // hash, never plaintext
         user.setRegisteredDate(LocalDate.now());
-        // role defaults to USER via the field initializer on User entity
+        // role defaults to USER, emailVerified defaults to false
 
         User saved = userRepository.save(user);
-        String token = jwtService.generateToken(saved);
+        verificationService.issueCode(saved);
 
-        log.info("New user registered: id={}", saved.getId());
-        return toAuthResponse(saved, token);
+        log.info("New user registered, awaiting email verification: id={}", saved.getId());
     }
 
     // ── Login ─────────────────────────────────────────────────────────────────
@@ -76,9 +186,20 @@ public class AuthService {
         User user = userRepository.findByEmail(dto.email())
                 .orElseThrow(InvalidCredentialsException::new);
 
-        String token = jwtService.generateToken(user);
+        // Checked only after the password is proven correct, so the 403
+        // can't be used to discover which emails have accounts.
+        if (!user.isEmailVerified()) {
+            throw new EmailNotVerifiedException();
+        }
+
         log.info("User logged in: id={}", user.getId());
-        return toAuthResponse(user, token);
+        return issueAuthResponse(user);
+    }
+
+    // ── Used by the verify-email endpoint ─────────────────────────────────────
+
+    public AuthResponseDTO issueAuthResponse(User user) {
+        return toAuthResponse(user, jwtService.generateToken(user));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
