@@ -17,22 +17,29 @@ public class BrevoEmailService {
     private static final Logger log = LoggerFactory.getLogger(BrevoEmailService.class);
 
     private final RestClient client;
+    private final String apiKey;
     private final String senderEmail;
     private final String senderName;
 
-    public BrevoEmailService(@Value("${brevo.api-key}") String apiKey,
-                             @Value("${brevo.sender-email}") String senderEmail,
-                             @Value("${brevo.sender-name}") String senderName) {
+    public BrevoEmailService(@Value("${brevo.api-key:}") String apiKey,
+                             @Value("${brevo.sender-email:}") String senderEmail,
+                             @Value("${brevo.sender-name:Spendle}") String senderName) {
         this.client = RestClient.builder()
                 .baseUrl("https://api.brevo.com/v3")
-                .defaultHeader("api-key", apiKey)
+                .defaultHeader("api-key", apiKey != null ? apiKey : "")
                 .defaultHeader("accept", "application/json")
                 .build();
+        this.apiKey = apiKey;
         this.senderEmail = senderEmail;
         this.senderName = senderName;
     }
 
     public void sendVerificationCode(String toEmail, String code) {
+        if (apiKey == null || apiKey.isBlank() || senderEmail == null || senderEmail.isBlank()) {
+            log.error("BREVO_API_KEY or BREVO_SENDER_EMAIL is not configured in Railway! Cannot send verification email to {}", toEmail);
+            return;
+        }
+
         Map<String, Object> body = Map.of(
                 "sender", Map.of("name", senderName, "email", senderEmail),
                 "to", List.of(Map.of("email", toEmail)),
