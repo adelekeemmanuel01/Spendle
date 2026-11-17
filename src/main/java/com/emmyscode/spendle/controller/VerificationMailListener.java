@@ -17,7 +17,7 @@ public class VerificationMailListener {
     private final BrevoEmailService brevoEmailService;
 
     @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onCodeIssued(VerificationCodeIssued event) {
         log.info("Sending verification email to {}", event.email());
         try {
